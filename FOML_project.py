@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[26]:
+# In[1]:
 
 
 from sklearn.svm import SVC
@@ -14,7 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-# In[61]:
+# In[3]:
 
 
 import yfinance as yf
@@ -31,7 +31,7 @@ stock_symbol = st.text_input("Stock Symbol", value="INFY.NS")  # Default to "INF
 if st.button("Get Data"):
     try:
         # Download historical data from Yahoo Finance
-        data = yf.download(stock_symbol, start="2000-01-01")
+        data = yf.download(stock_symbol, start="2015-01-01")
         
         # Display the data
         st.write(f"Historical data for {stock_symbol}:")
@@ -54,35 +54,29 @@ if st.button("Get Data"):
         st.error(f"Error retrieving data: {e}")
 
 
-# In[12]:
+# In[4]:
 
 
 df= pd.read_csv(fr"C:\Users\Manan\Downloads\{stock_symbol}_historical_data.csv")
 
 
-# In[14]:
+# In[5]:
 
 
 df = df.drop([0,1]).reset_index(drop=True)# Drop the first row (misaligned row)
 
 
-# In[16]:
+# In[6]:
 
 
-df.columns = ["Date", "Price", "Close", "High", "Low", "Open", "Volume"]  # Rename columns
-
-# Reset the index for proper display
+df.columns = ["Date", "Price", "Close", "High", "Low", "Open", "Volume"]  
 df.reset_index(drop=True, inplace=True)
-
-# Convert the "Date" column to datetime format
 df['Date'] = pd.to_datetime(df['Date'], errors='coerce').dt.date
 df[['Price', 'Close', 'High', 'Low', 'Open', 'Volume']] = df[['Price', 'Close', 'High', 'Low', 'Open', 'Volume']].astype(float)
-
-# Display the first few rows of the cleaned data
 print(df.head())
 
 
-# In[18]:
+# In[7]:
 
 
 df['Open-Close'] = df.Open - df.Close
@@ -91,70 +85,61 @@ X = df[['Open-Close', 'High-Low']]
 X.head()
 
 
-# In[22]:
+# In[8]:
 
 
 y = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
 y
 
 
-# In[30]:
+# In[9]:
 
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.85, random_state=42)
 
 
-# In[32]:
+# In[10]:
 
 
-# Support vector classifier
 cls = SVC().fit(X_train, y_train)
 
 
-# In[48]:
+# In[19]:
 
 
 df['Predicted_Signal'] = cls.predict(X)
 
 
-# In[35]:
+# In[20]:
 
 
-# Calculate daily returns
 df['Return'] = df.Close.pct_change()
 
 
-# In[38]:
+# In[21]:
 
 
-# Calculate strategy returns
 df['Strategy_Return'] = df.Return *df.Predicted_Signal.shift(1)
 
 
-# In[40]:
+# In[25]:
 
 
-# Calculate Cumulutive returns
 df['Cum_Ret'] = df['Return'].cumsum()
 df
 
 
-# In[42]:
+# In[27]:
 
 
-# Plot Strategy Cumulative returns
 df['Cum_Strategy'] = df['Strategy_Return'].cumsum()
 df
 
 
-# In[63]:
+# In[29]:
 
 
 import matplotlib.pyplot as plt
-
-# Assuming 'df' is a DataFrame that contains 'Cum_Ret' and 'Cum_Strategy' columns
-
-# Create a plot
 fig, ax = plt.subplots()
 ax.plot(df['Cum_Ret'], color='red', label='Cumulative Return')
 ax.plot(df['Cum_Strategy'], color='blue', label='Cumulative Strategy')
@@ -162,18 +147,31 @@ ax.set_title("Cumulative Return vs Strategy")
 ax.set_xlabel("Time")
 ax.set_ylabel("Value")
 ax.legend()
-
-# Display the plot in Streamlit
 st.pyplot(fig)
 
 
-# In[65]:
+# In[30]:
 
 
 A = ((df['Cum_Strategy'] - df['Cum_Ret']) / df['Cum_Ret']) * 100
 mean = np.mean(A)
-
-# Display the mean value in Streamlit
 st.write("Mean Percentage Difference:")
 st.metric(label="Mean Difference (%)", value=f"{mean:.2f}")
+
+
+# In[33]:
+
+
+y_pred = cls.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print("Model Accuracy:", accuracy)
+latest_data = X.iloc[-1:].values.reshape(1, -1)  # Reshape if needed for single prediction
+prediction = cls.predict(latest_data)
+st.write(f"Prediction for tomorrow: {'Up' if prediction[0] == 1 else 'Down'}")
+
+
+# In[ ]:
+
+
+
 
